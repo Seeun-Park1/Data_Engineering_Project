@@ -1,0 +1,336 @@
+
+DROP TABLE IF EXISTS [ATs.Game];
+DROP TABLE IF EXISTS [ATs.Audience];
+DROP TABLE IF EXISTS [ATs.Team];
+DROP TABLE IF EXISTS [ATs.Performance];
+DROP TABLE IF EXISTS [ATs.Join];
+DROP TABLE IF EXISTS [ATs.Watch];
+
+
+-- CREATE TABLE
+
+CREATE TABLE [ATs.Audience] (
+	attendenceId CHAR(8) NOT NULL,
+	attendanceNumber INT,
+	CONSTRAINT pk_Audience_attendenceId PRIMARY KEY (attendenceId)
+);
+
+CREATE TABLE [ATs.Game] (
+	gameId CHAR(8) NOT NULL,
+	umdScore INT,
+	opponentScore INT,
+	gameOutcome char(5)
+	CONSTRAINT pk_Game_gameId PRIMARY KEY (gameId)
+);
+
+CREATE TABLE [ATs.Team] (
+	teamId CHAR(8) NOT NULL,
+	teamName VARCHAR(30),
+	CONSTRAINT pk_Team_teamId PRIMARY KEY (teamId)
+);
+
+CREATE TABLE [ATs.Performance] (
+	performanceId CHAR(14) NOT NULL,
+	teamId CHAR(8) NOT NULL,
+	goal INT,
+	shot INT,
+	yellowCard INT,
+	redCard INT,
+	saves INT,
+	CONSTRAINT pk_Performance_performanceId PRIMARY KEY (performanceId,teamId),
+	CONSTRAINT fk_Performance_teamId FOREIGN KEY (teamId)
+		REFERENCES [ATs.Team] (teamId)
+		ON DELETE NO ACTION ON UPDATE CASCADE
+);
+
+CREATE TABLE [ATs.Join] (
+	gameId CHAR(8) NOT NULL,
+	teamId CHAR(8) NOT NULL,
+	CONSTRAINT pk_Join_gameId PRIMARY KEY (gameId,teamId),
+	CONSTRAINT fk_Join_teamId FOREIGN KEY (teamId)
+		REFERENCES [ATs.Team] (teamId)
+		ON DELETE NO ACTION ON UPDATE CASCADE
+);
+
+CREATE TABLE [ATs.Watch] (
+	gameId CHAR(8) NOT NULL,
+	attendenceId CHAR(8) NOT NULL,
+	watchDate DATE,
+	CONSTRAINT pk_Watch_gameId PRIMARY KEY (gameId,attendenceId),
+	CONSTRAINT fk_Watch_attendanceId FOREIGN KEY (attendenceId)
+		REFERENCES [ATs.Audience] (attendenceId)
+		ON DELETE NO ACTION ON UPDATE CASCADE
+);
+
+
+-- DROP VIEW
+
+DROP VIEW [ATs.viewAudience];
+DROP VIEW [ATs.viewGame];
+DROP VIEW [ATs.viewTeam];
+DROP VIEW [ATs.viewJoin];
+DROP VIEW [ATs.viewPerformance];
+DROP VIEW [ATs.viewWatch];
+DROP VIEW [ATs.viewSeaon];
+
+
+-- CREATE VIEW
+
+CREATE VIEW [ATs.viewAudience] AS
+SELECT *,
+CASE 
+WHEN a.attendanceNumber < 1548 THEN 'LOW'
+WHEN a.attendanceNumber >= 1548 AND a.attendanceNumber < 3096 THEN 'MEDIUM'
+WHEN a.attendanceNumber >= 3096 AND a.attendanceNumber < 4644 THEN 'HIGH'
+ELSE 'EXCEPTION'
+END AS 'audienceLevel'
+FROM [ATs.Audience] a;
+
+CREATE VIEW [ATs.viewSeaon] AS
+SELECT YEAR([ATs.Watch].watchDate) AS 'years'
+FROM [ATs.Watch]
+GROUP BY YEAR([ATs.Watch].watchDate)
+
+CREATE VIEW [ATs.viewGame] AS
+SELECT * 
+FROM [ATs.Game];
+
+
+CREATE VIEW [ATs.viewTeam] AS
+SELECT * 
+FROM [ATs.Team];
+
+
+CREATE VIEW [ATs.viewJoin] AS
+SELECT * 
+FROM [ATs.Join];
+
+
+CREATE VIEW [ATs.viewPerformance] AS
+SELECT * 
+FROM [ATs.Performance];
+
+
+CREATE VIEW [ATs.viewWatch] AS
+SELECT * 
+FROM [ATs.Watch];
+
+SELECT *
+FROM [ATs.viewAudience]
+
+
+-- INSERT INTO 
+
+INSERT INTO [ATs.Audience] VALUES
+('A24-01', 3200)
+
+INSERT INTO [ATs.Game] VALUES
+('G24-01', 5, 0, 'W')
+
+INSERT INTO [ATs.Join] VALUES
+('G24-01', 'T50')
+
+INSERT INTO [ATs.Performance] VALUES
+('P24-01', 'T50', 5, 38, 3, 0, 2)
+
+INSERT INTO [ATs.Team] VALUES
+('T50', 'Jiabin St.')
+
+INSERT INTO [ATs.Watch] VALUES
+('G24-01', 'A24-01', 2024-08-21)
+
+
+-- Business Transactions
+-- 1. How do penalties vary based on different ranges of attendance?
+
+SELECT AVG(p.yellowCard) AS YellowCards , AVG(p.redcard) AS RedCards, 
+		CASE
+		WHEN a.attendanceNumber <= 1548 THEN 'a.Low'
+		WHEN a.attendanceNumber > 1548 AND a.attendanceNumber <= 3096 THEN 'b.Med'
+		WHEN a.attendanceNumber > 3096 THEN 'c.High'
+		END AS AudienceLevel
+FROM [ATs.viewPerformance] p 
+JOIN [ATs.viewJoin] j ON p.teamId = j.teamId
+JOIN [ATs.viewGame] g ON g.gameId = j.gameId
+JOIN [ATs.viewWatch] w ON w.gameId = g.gameId
+JOIN [ATs.viewAudience] a ON a.attendenceId = w.attendenceId
+GROUP BY 
+	CASE
+		WHEN a.attendanceNumber <= 1548 THEN 'a.Low'
+		WHEN a.attendanceNumber > 1548 AND a.attendanceNumber <= 3096 THEN 'b.Med'
+		WHEN a.attendanceNumber > 3096 THEN 'c.High'
+	END
+ORDER BY AudienceLevel
+
+
+
+
+-- 2. What is the relationship between the number of attendance and goals & shots? 
+
+SELECT AVG(p.goal) AS Goal , AVG(p.shot) AS Shot, 
+		CASE
+		WHEN a.attendanceNumber <= 1548 THEN 'a.Low'
+		WHEN a.attendanceNumber > 1548 AND a.attendanceNumber <= 3096 THEN 'b.Med'
+		WHEN a.attendanceNumber > 3096 THEN 'c.High'
+		END AS AudienceLevel
+FROM [ATs.viewPerformance] p 
+JOIN [ATs.viewJoin] j ON p.teamId = j.teamId
+JOIN [ATs.viewGame] g ON g.gameId = j.gameId
+JOIN [ATs.viewWatch] w ON w.gameId = g.gameId
+JOIN [ATs.viewAudience] a ON a.attendaenceId = w.attendaenceId
+GROUP BY 
+	CASE
+		WHEN a.attendanceNumber <= 1548 THEN 'a.Low'
+		WHEN a.attendanceNumber > 1548 AND a.attendanceNumber <= 3096 THEN 'b.Med'
+		WHEN a.attendanceNumber > 3096 THEN 'c.High'
+	END
+ORDER BY AudienceLevel
+
+
+-- 3.? ?What is the relationship between the number of attendance and saves? 
+
+SELECT AVG(p.saves) AS Saves ,
+		CASE
+		WHEN a.attendanceNumber <= 1548 THEN 'a.Low'
+		WHEN a.attendanceNumber > 1548 AND a.attendanceNumber <= 3096 THEN 'b.Med'
+		WHEN a.attendanceNumber > 3096 THEN 'c.High'
+		END AS AudienceLevel
+FROM [ATs.viewPerformance] p 
+JOIN [ATs.viewJoin] j ON p.teamId = j.teamId
+JOIN [ATs.viewGame] g ON g.gameId = j.gameId
+JOIN [ATs.viewWatch] w ON w.gameId = g.gameId
+JOIN [ATs.viewAudience] a ON a.attendaenceId = w.attendaenceId
+GROUP BY 
+	CASE
+		WHEN a.attendanceNumber <= 1548 THEN 'a.Low'
+		WHEN a.attendanceNumber > 1548 AND a.attendanceNumber <= 3096 THEN 'b.Med'
+		WHEN a.attendanceNumber > 3096 THEN 'c.High'
+	END
+ORDER BY AudienceLevel
+
+
+-- 4.? ?Who are the opponents when UMD experiences the top 5 high audience attendance? 
+
+SELECT TOP 5
+    T.teamName AS 'Team Name',
+    A.attendanceNumber AS 'Attendance Number'
+FROM
+    [ATs.viewAudience] a
+JOIN
+    [ATs.viewWatch] w ON a.attendaenceId = w.attendaenceId
+JOIN
+    [ATs.viewGame] g ON w.gameId = g.gameId
+JOIN
+    [ATs.viewJoin] j ON g.gameId = j.gameId
+JOIN
+    [ATs.viewTeam] t ON J.teamId = t.teamId
+ORDER BY
+    a.attendanceNumber DESC;
+
+
+-- 5.? ?What are the game outcomes (win/loss) when the attendance exceeds a per Dates-Avg Per Date? 
+
+SELECT g.years AS 'Year', t.[2021_WIN_RATE] AS 'Win Rate',h.[above avg attendance winning rate] AS 'Attendance Rate in Win Game Per Year'
+FROM [ATs.viewSeaon] g,
+(SELECT YEAR(aw.watchDate) AS 'years',
+	CAST(CAST((SELECT COUNT(m.gameId) AS 'WIN_GAME_NUMBER_2021'	
+	FROM [ATs.viewAudience] a
+	JOIN [ATs.viewWatch] avw
+	ON a.attendenceId = avw.attendenceId
+	JOIN [ATs.viewGame] m
+	ON avw.gameId = m.gameId
+	WHERE YEAR(avw.watchDate) = 2021 AND m.gameOutcome = 'W') AS float) / COUNT(ag.gameOutcome) AS DECIMAL(10,2)) AS '2021_WIN_RATE'
+FROM [ATs.viewGame] ag
+JOIN [ATs.viewWatch] aw
+ON ag.gameId = aw.gameId
+WHERE YEAR(aw.watchDate) = 2021
+GROUP BY YEAR(aw.watchDate)
+UNION ALL
+SELECT YEAR(aw.watchDate) AS 'years',
+	CAST(CAST((SELECT COUNT(m.gameId) AS 'WIN_GAME_NUMBER_2021'	
+	FROM [ATs.viewAudience] a
+	JOIN [ATs.viewWatch] avw
+	ON a.attendenceId = avw.attendenceId
+	JOIN [ATs.viewGame] m
+	ON avw.gameId = m.gameId
+	WHERE YEAR(avw.watchDate) = 2022 AND m.gameOutcome = 'W') AS float) / COUNT(ag.gameOutcome) AS DECIMAL(10,2)) AS '2021_WIN_RATE'
+FROM [ATs.viewGame] ag
+JOIN [ATs.viewWatch] aw
+ON ag.gameId = aw.gameId
+WHERE YEAR(aw.watchDate) = 2022
+GROUP BY YEAR(aw.watchDate)
+UNION ALL
+SELECT YEAR(aw.watchDate) AS 'years',
+	CAST(CAST((SELECT COUNT(m.gameId) AS 'WIN_GAME_NUMBER_2021'	
+	FROM [ATs.viewAudience] a
+	JOIN [ATs.viewWatch] avw
+	ON a.attendenceId = avw.attendenceId
+	JOIN [ATs.viewGame] m
+	ON avw.gameId = m.gameId
+	WHERE YEAR(avw.watchDate) = 2023 AND m.gameOutcome = 'W') AS float) / COUNT(ag.gameOutcome) AS DECIMAL(10,2)) AS '2021_WIN_RATE'
+FROM [ATs.viewGame] ag
+JOIN [ATs.viewWatch] aw
+ON ag.gameId = aw.gameId
+WHERE YEAR(aw.watchDate) = 2023
+GROUP BY YEAR(aw.watchDate)) t,
+
+	(
+SELECT YEAR(awh.watchDate) AS 'years',
+	CAST(CAST((SELECT COUNT(m.gameId) AS 'WIN_GAME_NUMBER_2021'
+	FROM [ATs.viewAudience] a
+	JOIN [ATs.viewWatch] avw
+	ON a.attendenceId = avw.attendenceId
+	JOIN [ATs.viewGame] m
+	ON avw.gameId = m.gameId
+	WHERE YEAR(avw.watchDate) = 2021 AND m.gameOutcome = 'W' AND a.attendanceNumber > (SELECT r.[AVERAGE OF AUDIENCE PER GAME] FROM [ATs.viewAvg] r WHERE r.years = 2021 )
+	GROUP BY YEAR(avw.watchDate)) AS float)/(SELECT COUNT(m.gameId)
+											FROM [ATs.viewGame] m
+											JOIN [ATs.viewWatch] av
+											ON m.gameId = av.gameId
+											JOIN [ATs.viewAudience] ava
+											ON ava.attendenceId = av.attendenceId
+											WHERE YEAR(av.watchDate) = 2021 AND (SELECT t.[AVERAGE OF AUDIENCE PER GAME] FROM [ATs.viewAvg] t WHERE t.years = 2021) < ava.attendanceNumber) AS DECIMAL(10,2)) AS 'above avg attendance winning rate'
+	FROM [ATs.viewWatch] awh
+	WHERE YEAR(awh.watchDate) = 2021
+GROUP BY YEAR(awh.watchDate)
+	UNION ALL
+	SELECT YEAR(awh.watchDate) AS 'years',
+	CAST(CAST((SELECT COUNT(m.gameId) AS 'WIN_GAME_NUMBER_2022'
+	FROM [ATs.viewAudience] a
+	JOIN [ATs.viewWatch] avw
+	ON a.attendenceId = avw.attendenceId
+	JOIN [ATs.viewGame] m
+	ON avw.gameId = m.gameId
+	WHERE YEAR(avw.watchDate) = 2022 AND m.gameOutcome = 'W' AND a.attendanceNumber > (SELECT r.[AVERAGE OF AUDIENCE PER GAME] FROM [ATs.viewAvg] r WHERE r.years = 2022 )
+	GROUP BY YEAR(avw.watchDate)) AS float)/(SELECT COUNT(m.gameId)
+											FROM [ATs.viewGame] m
+											JOIN [ATs.viewWatch] av
+											ON m.gameId = av.gameId
+											JOIN [ATs.viewAudience] ava
+											ON ava.attendenceId = av.attendenceId
+											WHERE YEAR(av.watchDate) = 2022 
+											AND (SELECT t.[AVERAGE OF AUDIENCE PER GAME] FROM [ATs.viewAvg] t WHERE t.years = 2022) < ava.attendanceNumber) AS DECIMAL(10,2)) AS 'above avg attendance winning rate'
+	FROM [ATs.viewWatch] awh
+	WHERE YEAR(awh.watchDate) = 2022
+GROUP BY YEAR(awh.watchDate)
+UNION ALL
+SELECT YEAR(awh.watchDate) AS 'years',
+	CAST(CAST((SELECT COUNT(m.gameId) AS 'WIN_GAME_NUMBER_2023'
+	FROM [ATs.viewAudience] a
+	JOIN [ATs.viewWatch] avw
+	ON a.attendenceId = avw.attendenceId
+	JOIN [ATs.viewGame] m
+	ON avw.gameId = m.gameId
+	WHERE YEAR(avw.watchDate) = 2023 AND m.gameOutcome = 'W' AND a.attendanceNumber > (SELECT r.[AVERAGE OF AUDIENCE PER GAME] FROM [ATs.viewAvg] r WHERE r.years = 2023 )
+	GROUP BY YEAR(avw.watchDate)) AS float)/(SELECT COUNT(m.gameId)
+											FROM [ATs.viewGame] m
+											JOIN [ATs.viewWatch] av
+											ON m.gameId = av.gameId
+											JOIN [ATs.viewAudience] ava
+											ON ava.attendenceId = av.attendenceId
+											WHERE YEAR(av.watchDate) = 2023 AND (SELECT t.[AVERAGE OF AUDIENCE PER GAME] FROM [ATs.viewAvg] t WHERE t.years = 2023) < ava.attendanceNumber) AS DECIMAL(10,2)) AS 'above avg attendance winning rate'
+	FROM [ATs.viewWatch] awh
+	WHERE YEAR(awh.watchDate) = 2023
+GROUP BY YEAR(awh.watchDate)) h
+WHERE t.years = g.years AND h.years = t.years
+
