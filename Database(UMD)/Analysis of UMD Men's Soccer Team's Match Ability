@@ -187,7 +187,7 @@ GROUP BY
 ORDER BY AudienceLevel
 
 
--- 3.? ?What is the relationship between the number of attendance and saves? 
+-- 3.?What is the relationship between the number of attendance and saves? 
 
 SELECT AVG(p.saves) AS Saves ,
 		CASE
@@ -209,7 +209,7 @@ GROUP BY
 ORDER BY AudienceLevel
 
 
--- 4.? ?Who are the opponents when UMD experiences the top 5 high audience attendance? 
+-- 4.Who are the opponents when UMD experiences the top 5 high audience attendance? 
 
 SELECT TOP 5
     T.teamName AS 'Team Name',
